@@ -291,8 +291,14 @@
     document.getElementById('drainNote').textContent = tt === 2000 ? t('dr2000', { v: t('v' + v) }) : tt === 1950 ? (v === 'high' ? t('dr1950high') : v === 'mid_we' ? t('dr1950we') : t('dr1950')) : tt === 1900 ? (v === 'mid_we' ? t('dr1900we') : t('dr1900')) : '';
     const vv = (tt === 1900 || tt === 1950 || tt === 2000) ? v : 'mid';
     const sr = ((D().stats[s] || {})[vv] || {})[String(tt)] || {}, st = sr.core;
-    document.getElementById('frameStats').innerHTML = st ? t('stats', { d: t(lg() === 'narrow' ? 'dNarrow' : 'dBroad'), f: pc1(st.f), km: Math.round(st.km2).toLocaleString(LANG === 'ru' ? 'ru-RU' : 'en-GB'), pot: pc1(st.pot),
-      W: pc1(sr.W.f), C: pc1(sr.C.f), E: pc1(sr.E.f), S: pc1(sr.S.f) }) : '';
+    // Coverage of a unit in this frame against the full (1950) frame: area = km2 / share. Early tree-ring frames miss the east,
+    // so a regional share over a fraction of the region is not shown as that region's share.
+    const ref = ((D().stats[s] || {}).mid || {})['1950'] || {};
+    const cov = R => { const a = sr[R], b = ref[R]; return a && b && a.f > 0 && b.f > 0 ? Math.min(1, (a.km2 / a.f) / (b.km2 / b.f)) : 1; };
+    const rg = R => cov(R) < 0.9 ? (LANG === 'ru' ? 'нет данных (покрыто ' + Math.round(cov(R) * 100) + ' %)' : 'no data (' + Math.round(cov(R) * 100) + ' % covered)') : pc1(sr[R].f);
+    const part = st && cov('core') < 0.9 ? (LANG === 'ru' ? ' по покрытой части' : ' of the covered part') : '';
+    document.getElementById('frameStats').innerHTML = st ? t('stats', { d: t(lg() === 'narrow' ? 'dNarrow' : 'dBroad'), f: pc1(st.f) + part, km: Math.round(st.km2).toLocaleString(LANG === 'ru' ? 'ru-RU' : 'en-GB'), pot: pc1(st.pot),
+      W: rg('W'), C: rg('C'), E: rg('E'), S: rg('S') }) : '';
     img('W', document.getElementById('lyrW').checked ? D().overlays.W[s][tt] : null, 0.85);
     img('prior', document.getElementById('lyrPrior').checked ? D().overlays.prior.share : null, 0.85);
     const dv = (tt === 1900 || tt === 1950 || tt === 2000);
